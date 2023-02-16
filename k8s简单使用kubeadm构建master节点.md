@@ -64,3 +64,64 @@ kubeadm join 10.190.31.7:6443 --token xxxx.xxxxxxxxxxxx \
 # 安装flannel网络插件安装
 kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 ```
+
+---
+
+更新:
+
+### 安装机器说明
+- ubuntu
+- 2h16g
+只有一台机器
+
+### 开始安装
+
+#### 一,安装kubectl, kubeadm, kubelete
+
+```
+sudo curl https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | apt-key add -
+sudo apt-get install kubectl, kubeadm kubelet # 安装工具
+```
+
+#### 二, 拉取镜像(containerd，注意这里用的不是Docker)
+先通过 `kubeadm config images list` 获取所需的所有镜像以及版本，填入下面， 需要注意，pause是个坑, 只能是3.6版本, 如果有什么镜像安装不上，手动补上即可
+```
+#!/bin/bash
+images=(
+    kube-apiserver:v1.26.1
+    kube-controller-manager:v1.26.1
+    kube-scheduler:v1.26.1
+    kube-proxy:v1.26.1
+    pause:3.6
+    etcd:3.5.6-0
+    coredns/coredns:v1.9.3
+)
+
+for imageName in ${images[@]} ; do
+    ctr image pull registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName
+    ctr -n k8s.io image tag registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName registry.k8s.io/$imageName
+done
+```
+
+#### 三，开始安装
+```
+swapoff -a # 一定主要要执行！！
+kubeadm init --apiserver-advertise-address=10.190.31.7 --pod-network-cidr=10.244.0.0/16 
+
+# 如果中途出错，请执行reset命令，然后寻找解决办法
+kubeadm reset
+
+# 执行成功后，
+export KUBECONFIG=/etc/kubernetes/admin.conf
+然后就可以使用kubectl管理集群了
+```
+
+#### 四，安装网络插件flannel
+```
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+```
+
+done
+
+
+
